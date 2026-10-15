@@ -67,7 +67,7 @@ Three things are set up:
 | Server | What it unlocks |
 |--------|----------------|
 | `awslabs.eks-mcp-server` | Query EKS clusters, inspect pods, stream logs, apply manifests |
-| `awslabs.terraform-mcp-server` | Run Terraform commands, search provider docs, run Checkov scans |
+| `terraform-mcp-server` (HashiCorp) | Search Terraform Registry provider and module docs, latest versions |
 | `awslabs.aws-pricing-mcp-server` | Live AWS pricing lookups and cost analysis reports |
 | `awslabs.core-mcp-server` | MCP orchestration layer (deprecated, kept for compatibility) |
 

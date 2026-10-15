@@ -79,28 +79,28 @@ Claude will use this server to check pod events, read logs, and inspect the depl
 
 ---
 
-### awslabs.terraform-mcp-server
+### terraform-mcp-server (HashiCorp)
 
-**What it does:** Gives Claude the ability to run Terraform commands and search provider documentation.
+**What it does:** Gives Claude up-to-date Terraform Registry documentation, so it writes Terraform against the current provider and module versions instead of relying on its training data.
 
 **Key capabilities:**
-- Run `terraform init`, `plan`, `apply`, `validate`, and `destroy`
-- Search AWS and AWSCC provider resource documentation
-- Search AWS-IA Terraform modules (Bedrock, OpenSearch, SageMaker)
-- Run Checkov security scans on Terraform code
-- Analyse existing modules from the Terraform Registry
+- Search provider resource and data source documentation (e.g. `hashicorp/aws`)
+- Look up the latest provider and module versions
+- Search and inspect modules from the Terraform Registry
+- Search Sentinel policies
+- Manage HCP Terraform / Terraform Enterprise workspaces (optional, requires a `TFE_TOKEN`)
 
 **Example use in this project:**
 
 > "What Terraform resource do I need to create an EKS node group?"
 
-Claude will search the AWSCC and AWS provider docs and return the correct resource schema and example usage.
+Claude will search the AWS provider docs and return the correct resource schema and example usage.
 
 > "Run terraform plan in the Infrastructure directory"
 
-Claude will execute it and summarise what will be created, changed, or destroyed.
+This server does not run Terraform itself — Claude runs `terraform plan` directly in your terminal and summarises what will be created, changed, or destroyed.
 
-**Note:** This server is deprecated in favour of HashiCorp's official Terraform MCP server, but remains functional.
+**Note:** This replaces `awslabs.terraform-mcp-server`, which AWS has withdrawn from PyPI in favour of [HashiCorp's official server](https://github.com/hashicorp/terraform-mcp-server). The old package can no longer be installed with `uvx`. For Checkov scans, run `checkov -d .` directly.
 
 ---
 
@@ -185,7 +185,7 @@ You should see your account ID, user ID, and ARN returned. If this fails, the AW
 
 ---
 
-### Step 3 — Install uv
+### Step 3 — Install uv and the Terraform MCP server
 
 `uv` is the Python package runner that launches the AWS MCP servers automatically.
 
@@ -201,6 +201,18 @@ Verify:
 
 ```bash
 uvx --version
+```
+
+Then install HashiCorp's Terraform MCP server (it ships as a standalone binary, not a `uvx` package):
+
+```bash
+brew install terraform-mcp-server
+```
+
+Verify:
+
+```bash
+terraform-mcp-server --version
 ```
 
 ---
@@ -221,12 +233,9 @@ Create or edit `~/.claude/settings.json` with the following:
         "FASTMCP_LOG_LEVEL": "ERROR"
       }
     },
-    "awslabs.terraform-mcp-server": {
-      "command": "uvx",
-      "args": ["awslabs.terraform-mcp-server@latest"],
-      "env": {
-        "FASTMCP_LOG_LEVEL": "ERROR"
-      }
+    "terraform": {
+      "command": "terraform-mcp-server",
+      "args": ["stdio"]
     },
     "awslabs.aws-pricing-mcp-server": {
       "command": "uvx",
@@ -310,6 +319,7 @@ You should see all four servers listed as `connected`. If any show as `failed`:
 | Wrong region errors | Update `AWS_REGION` in `~/.claude/settings.json` |
 | `uvx: command not found` | Run `brew install uv` |
 | Server times out on first use | Normal — `uvx` downloads the server on first run, retry after ~30s |
+| `awslabs.terraform-mcp-server` shows `failed` | The package was withdrawn — replace it with HashiCorp's `terraform-mcp-server` (Step 3 and Step 4) |
 
 ---
 
@@ -319,8 +329,8 @@ You should see all four servers listed as `connected`. If any show as `failed`:
 |------|----------------|
 | Check pod logs / health | `eks-mcp-server` |
 | Apply k8s manifests | `eks-mcp-server` |
-| Run terraform plan/apply | `terraform-mcp-server` |
-| Search provider docs | `terraform-mcp-server` |
+| Run terraform plan/apply | None — Claude runs `terraform` directly |
+| Search provider and module docs | `terraform-mcp-server` |
 | Estimate infrastructure cost | `aws-pricing-mcp-server` |
 | Bedrock agent cost analysis | `aws-pricing-mcp-server` |
 | Cluster and node group info | `eks-mcp-server` |
