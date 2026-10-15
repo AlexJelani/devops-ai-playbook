@@ -181,7 +181,7 @@ aws sts get-caller-identity
 
 You should see your account ID, user ID, and ARN returned. If this fails, the AWS MCP servers will not connect.
 
-> If you're using AWS SSO or named profiles, set `AWS_PROFILE` in `~/.claude/settings.json` to match your profile name.
+> If you're using AWS SSO or named profiles, pass `-e AWS_PROFILE=<your-profile>` when adding the AWS servers in Step 4.
 
 ---
 
@@ -219,45 +219,35 @@ terraform-mcp-server --version
 
 ### Step 4 — Configure MCP Servers
 
-Create or edit `~/.claude/settings.json` with the following:
+Register each server with the `claude mcp add` command. Claude Code does **not** read MCP servers from `~/.claude/settings.json` — `claude mcp add` writes them to `~/.claude.json`, which is where they are loaded from.
 
-```json
-{
-  "mcpServers": {
-    "awslabs.core-mcp-server": {
-      "command": "uvx",
-      "args": ["awslabs.core-mcp-server@latest"],
-      "env": {
-        "AWS_REGION": "us-east-1",
-        "AWS_PROFILE": "default",
-        "FASTMCP_LOG_LEVEL": "ERROR"
-      }
-    },
-    "terraform": {
-      "command": "terraform-mcp-server",
-      "args": ["stdio"]
-    },
-    "awslabs.aws-pricing-mcp-server": {
-      "command": "uvx",
-      "args": ["awslabs.aws-pricing-mcp-server@latest"],
-      "env": {
-        "AWS_REGION": "us-east-1",
-        "FASTMCP_LOG_LEVEL": "ERROR"
-      }
-    },
-    "awslabs.eks-mcp-server": {
-      "command": "uvx",
-      "args": ["awslabs.eks-mcp-server@latest"],
-      "env": {
-        "AWS_REGION": "us-east-1",
-        "FASTMCP_LOG_LEVEL": "ERROR"
-      }
-    }
-  }
-}
+```bash
+claude mcp add awslabs-eks-mcp-server -s user \
+  -e AWS_REGION=us-east-1 -e AWS_PROFILE=default -e FASTMCP_LOG_LEVEL=ERROR \
+  -- uvx awslabs.eks-mcp-server@latest
+
+claude mcp add awslabs-aws-pricing-mcp-server -s user \
+  -e AWS_REGION=us-east-1 -e AWS_PROFILE=default -e FASTMCP_LOG_LEVEL=ERROR \
+  -- uvx awslabs.aws-pricing-mcp-server@latest
+
+claude mcp add terraform -s user \
+  -- terraform-mcp-server stdio
+
+# Optional — deprecated, see awslabs.core-mcp-server above
+claude mcp add awslabs-core-mcp-server -s user \
+  -e AWS_REGION=us-east-1 -e AWS_PROFILE=default -e FASTMCP_LOG_LEVEL=ERROR \
+  -- uvx awslabs.core-mcp-server@latest
 ```
 
-> Replace `us-east-1` with your AWS region. Replace `default` with your AWS profile name if using named profiles or SSO.
+- `-s user` makes the server available in every project. Use `-s project` instead to write it to a `.mcp.json` file in the repo that teammates can share.
+- Replace `us-east-1` with your AWS region and `default` with your AWS profile name if you use named profiles or SSO.
+- To change a server's settings later, remove it with `claude mcp remove <name> -s user` and add it again.
+
+Verify they connect:
+
+```bash
+claude mcp list
+```
 
 ---
 
@@ -316,7 +306,7 @@ You should see all four servers listed as `connected`. If any show as `failed`:
 | Problem | Fix |
 |---------|-----|
 | AWS server shows `failed` | Run `aws sts get-caller-identity` to verify credentials |
-| Wrong region errors | Update `AWS_REGION` in `~/.claude/settings.json` |
+| Wrong region errors | Remove the server with `claude mcp remove <name> -s user` and re-add it with the correct `-e AWS_REGION=` |
 | `uvx: command not found` | Run `brew install uv` |
 | Server times out on first use | Normal — `uvx` downloads the server on first run, retry after ~30s |
 | `awslabs.terraform-mcp-server` shows `failed` | The package was withdrawn — replace it with HashiCorp's `terraform-mcp-server` (Step 3 and Step 4) |

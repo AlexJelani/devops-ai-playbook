@@ -62,7 +62,7 @@ Three things are set up:
 
 **CLAUDE.md** — a project instruction file at the repo root that Claude reads automatically at the start of every session. It puts Claude in safe execution mode: explain what you're about to do and why before taking any action. This is important when working with live AWS infrastructure where silent commands can have real consequences.
 
-**MCP Servers** — background processes that extend Claude's built-in capabilities. Four servers are configured in `~/.claude/settings.json`:
+**MCP Servers** — background processes that extend Claude's built-in capabilities. Four servers are registered with `claude mcp add` (stored in `~/.claude.json`):
 
 | Server | What it unlocks |
 |--------|----------------|
