@@ -34,3 +34,7 @@ Thumbs.db
 
 # Environment variables
 .env
+
+# Locally installed agent skills
+.agents/
+skills-lock.json
