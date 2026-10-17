@@ -4,7 +4,8 @@ on:
   workflow_dispatch:
 
 env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
+  # Repository variable AWS_REGION overrides the default
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
   IMAGE_TAG: ${{ github.sha }}
 
 jobs:
@@ -12,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      # Let the other services finish when one fails
+      fail-fast: false
       matrix:
         service:
           - auth
@@ -20,7 +23,10 @@ jobs:
           - order-service
           - product-service
           - user-service
-          - frontend
+        include:
+          - service: frontend
+            # nginx image that serves the React build and proxies /api/ to the gateway
+            dockerfile: Dockerfile.k8s
 
     steps:
       - name: Checkout Code
@@ -31,14 +37,13 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
+      # Logs in and returns the registry (<account>.dkr.ecr.<region>.amazonaws.com)
       - name: Login to Amazon ECR
-        run: |
-          aws ecr get-login-password --region $AWS_REGION | \
-          docker login --username AWS \
-          --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com
-     
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: Build Docker Image
         run: |
           if [ "${{ matrix.service }}" == "frontend" ]; then
@@ -50,13 +55,13 @@ jobs:
           echo "Building from $BUILD_PATH"
 
           docker build \
-            -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/${{ matrix.service }}:$IMAGE_TAG \
+            -f $BUILD_PATH/${{ matrix.dockerfile || 'Dockerfile' }} \
+            -t ${{ steps.ecr.outputs.registry }}/${{ matrix.service }}:$IMAGE_TAG \
           $BUILD_PATH
-
 
       - name: Push Docker Image
         run: |
-          IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ matrix.service }}:${{ github.sha }}
+          IMAGE_URI=${{ steps.ecr.outputs.registry }}/${{ matrix.service }}:$IMAGE_TAG
           echo "Pushing $IMAGE_URI"
           docker push $IMAGE_URI
 
@@ -72,24 +77,36 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Update image tags in k8s manifests
         run: |
-          NEW_TAG=${{ github.sha }}
-          ACCOUNT=${{ secrets.AWS_ACCOUNT_ID }}
-          REGION=${{ secrets.AWS_REGION }}
+          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          REGISTRY="${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+          # Replace the whole image reference, so placeholders like <AWS_ACCOUNT_ID> are fixed too
+          update() {
+            sed -i "s|image: .*/$1:.*|image: ${REGISTRY}/$1:${IMAGE_TAG}|" "$2"
+            grep -q "image: ${REGISTRY}/$1:${IMAGE_TAG}" "$2" || { echo "No image line for $1 in $2"; exit 1; }
+          }
 
           for SERVICE in auth gateway orders order-service product-service user-service; do
-            MANIFEST="gitops/k8s/backend/${SERVICE}.yml"
-            sed -i "s|${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${SERVICE}:.*|${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${SERVICE}:${NEW_TAG}|g" $MANIFEST
+            update "$SERVICE" "gitops/k8s/backend/${SERVICE}.yml"
           done
-
-          sed -i "s|${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/frontend:.*|${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/frontend:${NEW_TAG}|g" gitops/k8s/frontend/deployment.yml
+          update frontend gitops/k8s/frontend/deployment.yml
 
       - name: Commit and push updated manifests
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add gitops/k8s/
-          git diff --staged --quiet || git commit -m "ci: update image tags to ${{ github.sha }}"
+          git diff --staged --quiet && exit 0
+          git commit -m "ci: update image tags to ${{ github.sha }}"
+          # main may have moved while the images were building
+          git pull --rebase
           git push
-
