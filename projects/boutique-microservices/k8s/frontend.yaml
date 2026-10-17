@@ -36,6 +36,9 @@ kind: Service
 metadata:
   name: frontend
 spec:
+  # Public AWS load balancer. Delete this Service before `terraform destroy`,
+  # or the load balancer it creates will block deleting the VPC.
+  type: LoadBalancer
   selector:
     app: frontend
   ports:
