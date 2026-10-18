@@ -10,8 +10,9 @@ spec:
     matchNames:
       - boutique
   selector:
+    # All six backend services (each exposes /metrics on its "http" port)
     matchLabels:
-      app: gateway   
+      app.kubernetes.io/part-of: boutique
   endpoints:
     - port: http
       path: /metrics
