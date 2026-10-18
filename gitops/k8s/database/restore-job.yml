@@ -21,7 +21,13 @@ spec:
               done
 
               echo "Restoring dump..."
-              psql -h boutique-postgres -U postgres -f /dump/boutique_full.sql
+              # Skip the dump's ALTER ROLE so the postgres password stays the one in boutique-secrets
+              grep -v '^ALTER ROLE postgres' /dump/boutique_full.sql |
+                psql -h boutique-postgres -U postgres
+
+              # The dump has no users_db; user-service needs it
+              psql -h boutique-postgres -U postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'users_db'" | grep -q 1 ||
+                psql -h boutique-postgres -U postgres -c "CREATE DATABASE users_db"
 
               echo "Creating auth_db schema..."
               psql -h boutique-postgres -U postgres -d auth_db -c "
