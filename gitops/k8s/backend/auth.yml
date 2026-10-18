@@ -36,11 +36,15 @@ kind: Service
 metadata:
   name: auth
   namespace: boutique
+  labels:
+    app: auth
+    app.kubernetes.io/part-of: boutique
 spec:
   selector:
     app: auth
   ports:
-    - protocol: TCP
+    - name: http
+      protocol: TCP
       port: 3002
       targetPort: 3002
   type: ClusterIP

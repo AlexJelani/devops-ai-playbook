@@ -41,11 +41,12 @@ metadata:
   namespace: boutique
   labels:
     app: gateway
+    app.kubernetes.io/part-of: boutique
 spec:
   selector:
     app: gateway
   ports:
-    - name: http   
+    - name: http
       protocol: TCP
       port: 3001
       targetPort: 3001

@@ -40,11 +40,15 @@ kind: Service
 metadata:
   name: order-service
   namespace: boutique
+  labels:
+    app: order-service
+    app.kubernetes.io/part-of: boutique
 spec:
   selector:
     app: order-service
   ports:
-    - protocol: TCP
-      port: 3002
-      targetPort: 3002
+    - name: http
+      protocol: TCP
+      port: 3004
+      targetPort: 3004
   type: ClusterIP

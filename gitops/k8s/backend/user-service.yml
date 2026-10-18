@@ -36,11 +36,15 @@ kind: Service
 metadata:
   name: user-service
   namespace: boutique
+  labels:
+    app: user-service
+    app.kubernetes.io/part-of: boutique
 spec:
   selector:
     app: user-service
   ports:
-    - protocol: TCP
+    - name: http
+      protocol: TCP
       port: 3006
       targetPort: 3006
   type: ClusterIP
