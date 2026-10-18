@@ -12,8 +12,9 @@ spec:
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: boutique
-  syncPolicy: {}
-  # syncPolicy:
-  #   automated:
-  #     prune: true
-  #     selfHeal: true
+  # Deploy every change to gitops/ on main automatically.
+  # prune: delete resources removed from git; selfHeal: undo manual changes in the cluster.
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

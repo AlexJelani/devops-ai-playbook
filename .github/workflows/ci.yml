@@ -2,6 +2,18 @@ name: Boutique CI Pipeline
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    # Only app code; the manifest commit this workflow pushes (gitops/) must not re-trigger it
+    paths:
+      - projects/boutique-microservices/backend/**
+      - projects/boutique-microservices/frontend/**
+      - .github/workflows/ci.yml
+
+# One run at a time, so manifest updates land in order
+concurrency:
+  group: boutique-ci
+  cancel-in-progress: false
 
 env:
   # Repository variable AWS_REGION overrides the default
