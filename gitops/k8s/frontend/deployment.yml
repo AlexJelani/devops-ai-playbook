@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: 084847996020.dkr.ecr.us-east-1.amazonaws.com/frontend:5b145ddae0553922d20eaef4123daf05264e6b8a
+          image: 084847996020.dkr.ecr.us-east-1.amazonaws.com/frontend:9e65ed689c989afa26c1fad2aaae2844d179c552
           # nginx image (frontend/Dockerfile.k8s); proxies /api/ to the gateway Service
           ports:
             - containerPort: 80
